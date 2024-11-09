@@ -78,7 +78,7 @@ if uploaded_file or camera_image:
 
     if st.button("物体検出を開始"):
         with st.spinner("物体を検出中..."):
-            model = YOLO("e_meter_segadd2.pt")
+            model = YOLO("e_meter_segadd2.torchscript")
             results = model.predict(processed_image, imgsz=416, conf=0.5, classes=0)
 
             if not results[0].masks:
