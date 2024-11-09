@@ -3,4 +3,5 @@ ultralytics==8.0.30
 pillow
 torch==1.9.1
 torchvision==0.10.1
-opencv-python-headless
+numpy
+matplotlib
