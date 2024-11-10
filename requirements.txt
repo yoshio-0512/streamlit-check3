@@ -6,3 +6,4 @@ torchvision==0.16.0
 numpy
 matplotlib
 opencv-python-headless
+yolov5
