@@ -78,26 +78,29 @@ if uploaded_file or camera_image:
 
     if st.button("物体検出を開始"):
         with st.spinner("物体を検出中..."):
-            model = YOLO("e_meter_segadd2.torchscript")
-            results = model.predict(processed_image, imgsz=416, conf=0.5, classes=0)
+            try:
+                model = YOLO("e_meter_segadd2.pt")
+                results = model.predict(source=processed_image, imgsz=416, conf=0.5, classes=0)
 
-            if not results[0].masks:
-                st.error("配線の検出に失敗しました。目視で確認してください", icon="🚨")
-            else:
-                mask_images = [mask.data[0].cpu().numpy() * 255 for mask in results[0].masks]
-                coordinates = [find_top_bottom(mask) for mask in mask_images]
-                top_list = np.array([coord[0] for coord in coordinates])
-                bottom_list = np.array([coord[1] for coord in coordinates])
+                if not results[0].masks:
+                    st.error("配線の検出に失敗しました。目視で確認してください", icon="🚨")
+                else:
+                    mask_images = [mask.data[0].cpu().numpy() * 255 for mask in results[0].masks]
+                    coordinates = [find_top_bottom(mask) for mask in mask_images]
+                    top_list = np.array([coord[0] for coord in coordinates])
+                    bottom_list = np.array([coord[1] for coord in coordinates])
 
-                # ソート
-                sorted_top = np.array(sorted(top_list, key=lambda x: x[1]))
-                sorted_bottom = np.array([bottom for _, bottom in sorted(zip(top_list, bottom_list), key=lambda x: x[0][1])])
+                    # ソート
+                    sorted_top = np.array(sorted(top_list, key=lambda x: x[1]))
+                    sorted_bottom = np.array([bottom for _, bottom in sorted(zip(top_list, bottom_list), key=lambda x: x[0][1])])
 
-                # 分類
-                message, icon = classify_wiring(sorted_top, sorted_bottom)
-                st.success(message, icon=icon)
+                    # 分類
+                    message, icon = classify_wiring(sorted_top, sorted_bottom)
+                    st.success(message, icon=icon)
 
-                # 描画
-                result_image = draw_detected_points(processed_image.copy(), sorted_top, sorted_bottom)
-                st.image(result_image, caption="検出結果", width=300)
-                st.download_button("結果画像をダウンロード", data=result_image.tobytes(), file_name="result.png", mime="image/png")
+                    # 描画
+                    result_image = draw_detected_points(processed_image.copy(), sorted_top, sorted_bottom)
+                    st.image(result_image, caption="検出結果", width=300)
+                    st.download_button("結果画像をダウンロード", data=result_image.tobytes(), file_name="result.png", mime="image/png")
+            except Exception as e:
+                st.error(f"エラーが発生しました: {str(e)}", icon="❌")
