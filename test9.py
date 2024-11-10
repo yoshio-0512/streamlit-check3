@@ -1,25 +1,22 @@
 import streamlit as st
+from ultralytics import YOLO
 from PIL import Image, ImageDraw
 import numpy as np
-import torch
-import cv2
 
 # モデルのロード
 MODEL_PATH = "e_meter_segadd2.pt"  # モデルファイルのパス
-device = torch.device("cpu")  # 必要に応じて "cuda" に変更
 
-# YOLOv5モデルをロード
 @st.cache_resource
-def load_model(model_path, device):
-    model_data = torch.load(model_path, map_location=device)
-    model = model_data['model'].float().fuse().eval()  # モデルを評価モードに
+def load_model(model_path):
+    """YOLOv8モデルをロード"""
+    model = YOLO(model_path)
     return model
 
-model = load_model(MODEL_PATH, device)
+model = load_model(MODEL_PATH)
 
 # ヘルパー関数
 def preprocess_image(image):
-    """画像をリサイズしてYOLOの入力形式に変換"""
+    """画像をリサイズしてYOLOv8の入力形式に変換"""
     square_image = expand_image_to_square(image)
     resized_image = square_image.resize((640, 640))
     return np.array(resized_image)
@@ -37,14 +34,17 @@ def expand_image_to_square(image, background_color=(255, 255, 255)):
 def draw_boxes(image, detections):
     """検出結果を画像に描画"""
     draw = ImageDraw.Draw(image)
-    for *box, conf, cls in detections:
+    for detection in detections:
+        box = detection[:4]  # x1, y1, x2, y2
+        conf = detection[4]  # 信頼度
+        cls = int(detection[5])  # クラスID
         x1, y1, x2, y2 = map(int, box)
         draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
-        draw.text((x1, y1), f"{cls} {conf:.2f}", fill="red")
+        draw.text((x1, y1), f"Class {cls} {conf:.2f}", fill="red")
     return image
 
 # Streamlitアプリケーション
-st.title("YOLOv5での物体検出")
+st.title("YOLOv8での物体検出")
 uploaded_file = st.file_uploader("画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 camera_image = st.camera_input("またはカメラで画像を撮影してください")
 
@@ -56,14 +56,11 @@ if uploaded_file or camera_image:
     if st.button("物体検出を開始"):
         with st.spinner("物体を検出中..."):
             try:
-                # 画像を前処理
-                input_image_cv2 = cv2.cvtColor(np.array(input_image), cv2.COLOR_RGB2BGR)
-
-                # 推論を実行
-                results = model(input_image_cv2)
+                # YOLOv8モデルで推論を実行
+                results = model.predict(source=np.array(input_image), imgsz=640, conf=0.5)
 
                 # 検出結果の取得
-                detections = results.xyxy[0].cpu().numpy()  # [x1, y1, x2, y2, conf, class]
+                detections = results[0].boxes.xyxy.cpu().numpy()  # [x1, y1, x2, y2, conf, class]
 
                 if len(detections) == 0:
                     st.error("物体が検出されませんでした。", icon="🚨")
